@@ -1,0 +1,19 @@
+# 認証情報・起動スクリプト（平文パスワード含む）
+メディフリ起動.command
+起動.command
+起動.bat
+
+# Mac系
+.DS_Store
+__pycache__/
+*.pyc
+
+# データベース（ローカルデータ）
+data/
+
+# Docker（不要になったが念のため）
+Dockerfile
+docker-compose.yml
+
+# アプリ本体
+メディフリ案件ピックアップ.app

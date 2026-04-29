@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✚ メディフリ案件ピックアップ | 看護師向けクラウドソーシング自動収集</title>
+  <meta name="description" content="看護師・医療系のクラウドソーシング案件を毎日自動収集するツール" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── CSS Variables ─── */
+    :root {
+      --bg-base:  #fff5f9;
+      --bg-card:  #ffffff;
+      --border:   #f0d6e8;
+      --border-focus: #f472b6;
+
+      --purple:       #9333ea;
+      --purple-light: #f3e8ff;
+      --purple-hover: #7e22ce;
+
+      --pink:         #ec4899;
+      --pink-light:   #fce7f3;
+      --pink-hover:   #be185d;
+
+      --blue:         #2563eb;
+      --blue-light:   #dbeafe;
+      --blue-hover:   #1d4ed8;
+
+      --amber: #d97706;
+      --green: #059669;
+      --red:   #dc2626;
+
+      --source-cw: #7c3aed;
+      --source-la: #ec4899;
+      --source-co: #ea580c;
+      --source-in: #2563eb;
+
+      --text-primary:   #3b0764;
+      --text-secondary: #6b3a7d;
+      --text-muted:     #c084b0;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+
+      --shadow-sm: 0 1px 3px rgba(124,58,237,0.07), 0 1px 2px rgba(124,58,237,0.05);
+      --shadow-md: 0 4px 16px rgba(124,58,237,0.1);
+      --transition: 0.15s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ─── Reset ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Noto Sans JP', 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Layout ─── */
+    #app { position: relative; }
+
+    /* ─── Header ─── */
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      height: 60px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-spacer { flex: 1; }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 2.5s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .btn-fetch {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 18px;
+      background: var(--pink);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-fetch:hover { background: var(--pink-hover); }
+    .btn-fetch:active { transform: scale(0.98); }
+    .btn-fetch.loading { opacity: 0.6; pointer-events: none; }
+    .btn-fetch svg { width: 15px; height: 15px; }
+    .btn-fetch.loading svg { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Main ─── */
+    .main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 24px;
+    }
+
+    /* ─── Stats Bar ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: box-shadow var(--transition);
+    }
+    .stat-card:hover { box-shadow: var(--shadow-md); }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--text-primary);
+    }
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .stat-card .stat-value     { color: var(--pink); }
+    .stat-card.cw .stat-value  { color: var(--purple); }
+    .stat-card.la .stat-value  { color: var(--pink); }
+    .stat-card.co .stat-value  { color: var(--source-co); }
+    .stat-card.in .stat-value  { color: var(--blue); }
+
+    /* ─── Controls ─── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .search-wrap {
+      flex: 1;
+      min-width: 240px;
+      position: relative;
+    }
+    .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      width: 15px;
+      height: 15px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      outline: none;
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .filter-tab {
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .filter-tab:hover { border-color: var(--border-focus); color: var(--text-primary); }
+    .filter-tab.active     { background: var(--pink);      border-color: var(--pink);      color: #fff; }
+    .filter-tab.cw.active  { background: var(--purple);    border-color: var(--purple); }
+    .filter-tab.la.active  { background: var(--pink);      border-color: var(--pink); }
+    .filter-tab.co.active  { background: var(--source-co); border-color: var(--source-co); }
+    .filter-tab.in.active  { background: var(--blue);      border-color: var(--blue); }
+
+    .category-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      width: 100%;
+      margin-top: 2px;
+    }
+    .category-tab {
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .category-tab:hover { border-color: var(--border-focus); color: var(--text-primary); }
+    .category-tab.active         { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .category-tab.writer.active  { background: var(--blue);   border-color: var(--blue); }
+    .category-tab.sns.active     { background: var(--pink);   border-color: var(--pink); }
+    .category-tab.medical.active { background: var(--purple); border-color: var(--purple); }
+
+    .toggle-bookmark {
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .toggle-bookmark:hover { border-color: var(--amber); color: var(--amber); }
+    .toggle-bookmark.active { background: #fef3c7; border-color: var(--amber); color: var(--amber); }
+
+    /* ─── Job Grid ─── */
+    .result-info {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .result-info span { color: var(--pink); font-weight: 600; }
+
+    .jobs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    /* ─── Job Card ─── */
+    .job-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      transition: box-shadow var(--transition), border-color var(--transition), transform var(--transition);
+      animation: fadeInUp 0.25s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+    .job-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+    .job-card.cw::before { background: var(--source-cw); }
+    .job-card.la::before { background: var(--source-la); }
+    .job-card.co::before { background: var(--source-co); }
+    .job-card.in::before { background: var(--source-in); }
+    .job-card:hover { border-color: #cbd5e1; box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .job-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .source-badge {
+      flex-shrink: 0;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .source-badge.cw { background: var(--purple-light); color: var(--purple); }
+    .source-badge.la { background: var(--pink-light);   color: var(--pink); }
+    .source-badge.co { background: #ffedd5;              color: var(--source-co); }
+    .source-badge.in { background: var(--blue-light);   color: var(--blue); }
+
+    .job-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.5;
+      flex: 1;
+    }
+    .job-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color var(--transition);
+    }
+    .job-title a:hover { color: var(--purple); }
+
+    .job-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .job-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .job-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .job-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .keyword-tag {
+      padding: 2px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--pink-light);
+      color: var(--pink-hover);
+      border: 1px solid #f9a8d4;
+    }
+
+    .job-actions {
+      display: flex;
+      gap: 7px;
+      margin-top: auto;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      text-decoration: none;
+    }
+    .action-btn.open {
+      background: var(--pink);
+      color: #fff;
+      border-color: var(--pink);
+      flex: 2;
+    }
+    .action-btn.open:hover { background: var(--pink-hover); border-color: var(--pink-hover); }
+    .action-btn.bookmark:hover { border-color: var(--amber); color: var(--amber); }
+    .action-btn.bookmark.active { background: #fef3c7; border-color: var(--amber); color: var(--amber); }
+
+
+    /* ─── Empty State ─── */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      grid-column: 1 / -1;
+    }
+    .empty-icon { font-size: 52px; margin-bottom: 16px; }
+    .empty-title { font-size: 17px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+    .empty-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.7; }
+
+    /* ─── Pagination ─── */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      margin-bottom: 40px;
+    }
+    .page-btn {
+      padding: 7px 13px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: var(--transition);
+      min-width: 38px;
+      text-align: center;
+    }
+    .page-btn:hover { border-color: var(--purple); color: var(--purple); }
+    .page-btn.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .page-btn:disabled { opacity: 0.35; pointer-events: none; }
+
+    /* ─── Toast ─── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .toast {
+      padding: 12px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      box-shadow: var(--shadow-md);
+      animation: slideIn 0.25s ease;
+      max-width: 320px;
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.info    { border-left: 3px solid var(--blue); }
+    .toast.error   { border-left: 3px solid var(--red); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ─── Logs Panel ─── */
+    .logs-section {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .logs-table th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+    }
+    .logs-table td {
+      padding: 10px 12px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .logs-table tr:hover td { background: #f8fafc; }
+    .log-badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .log-badge.success { background: #d1fae5; color: var(--green); }
+    .log-badge.error   { background: #fee2e2; color: var(--red); }
+
+    /* ─── New Badge ─── */
+    .badge-new {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: var(--pink);
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    /* ─── Loading Skeleton ─── */
+    .skeleton {
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="2" width="6" height="20" rx="2" fill="white"/>
+            <rect x="2" y="9" width="20" height="6" rx="2" fill="white"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-text">メディフリ案件ピックアップ</div>
+          <div class="logo-sub">看護師向けクラウドソーシング自動収集</div>
+        </div>
+      </a>
+      <div class="header-spacer"></div>
+      <div class="header-status">
+        <div class="status-dot"></div>
+        <span id="last-fetch-label">最終取得: ―</span>
+      </div>
+      <button class="btn-fetch" id="btn-fetch" onclick="triggerFetch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        今すぐ取得
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-label">総案件数</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub">全ソース合計</div></div>
+      <div class="stat-card cw"><div class="stat-label">CrowdWorks</div><div class="stat-value" id="stat-cw">—</div></div>
+      <div class="stat-card la"><div class="stat-label">Lancers</div><div class="stat-value" id="stat-la">—</div></div>
+      <div class="stat-card co"><div class="stat-label">Coconala</div><div class="stat-value" id="stat-co">—</div></div>
+      <div class="stat-card in"><div class="stat-label">Indeed</div><div class="stat-value" id="stat-in">—</div></div>
+      <div class="stat-card"><div class="stat-label">ブックマーク</div><div class="stat-value" id="stat-bm">—</div><div class="stat-sub">気になる案件</div></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" class="search-input" id="search-input" placeholder="キーワードで絞り込み（例：記事監修, 訪問看護）" oninput="onSearchInput()" />
+      </div>
+      <div class="filter-tabs" id="filter-tabs">
+        <button class="filter-tab active" data-source="all" onclick="setSource('all', this)">すべて</button>
+        <button class="filter-tab cw" data-source="CrowdWorks" onclick="setSource('CrowdWorks', this)">CrowdWorks</button>
+        <button class="filter-tab la" data-source="Lancers" onclick="setSource('Lancers', this)">Lancers</button>
+        <button class="filter-tab co" data-source="Coconala" onclick="setSource('Coconala', this)">Coconala</button>
+        <button class="filter-tab in" data-source="Indeed" onclick="setSource('Indeed', this)">Indeed</button>
+      </div>
+      <button class="toggle-bookmark" id="btn-bookmark" onclick="toggleBookmarkFilter()">
+        ⭐ ブックマーク
+      </button>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="category-tabs" id="category-tabs">
+      <button class="category-tab active" data-category="" onclick="setCategory('', this)">🗂 すべて</button>
+      <button class="category-tab medical" data-category="medical" onclick="setCategory('medical', this)">✚ 医療・看護</button>
+      <button class="category-tab writer" data-category="writer" onclick="setCategory('writer', this)">✍️ ライター</button>
+      <button class="category-tab sns" data-category="sns" onclick="setCategory('sns', this)">📱 SNS運用</button>
+    </div>
+
+    <!-- Result Info -->
+    <div class="result-info" id="result-info">読み込み中...</div>
+
+    <!-- Jobs Grid -->
+    <div class="jobs-grid" id="jobs-grid">
+      <!-- Skeletons -->
+      <div class="skeleton-card"><div class="skeleton" style="height:16px;width:60%"></div><div class="skeleton" style="height:14px;width:100%"></div><div class="skeleton" style="height:14px;width:80%"></div></div>
+      <div class="skeleton-card"><div class="skeleton" style="height:16px;width:70%"></div><div class="skeleton" style="height:14px;width:100%"></div><div class="skeleton" style="height:14px;width:60%"></div></div>
+      <div class="skeleton-card"><div class="skeleton" style="height:16px;width:50%"></div><div class="skeleton" style="height:14px;width:100%"></div><div class="skeleton" style="height:14px;width:90%"></div></div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+
+    <!-- Logs -->
+    <div class="logs-section">
+      <div class="section-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        取得ログ
+      </div>
+      <table class="logs-table">
+        <thead>
+          <tr>
+            <th>日時</th>
+            <th>ソース</th>
+            <th>新規件数</th>
+            <th>ステータス</th>
+          </tr>
+        </thead>
+        <tbody id="logs-body">
+          <tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script>
+  // ─── State ───
+  let state = {
+    source: 'all',
+    bookmarked: false,
+    search: '',
+    category: '',
+    page: 1,
+    limit: 30,
+    total: 0,
+    searchTimer: null,
+  };
+
+  const sourceClass = {
+    'CrowdWorks': 'cw',
+    'Lancers': 'la',
+    'Coconala': 'co',
+    'Indeed': 'in',
+  };
+
+  // ─── Init ───
+  document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    loadJobs();
+    loadLogs();
+    setInterval(loadStats, 60000);
+  });
+
+  // ─── API ───
+  async function api(path, options = {}) {
+    const res = await fetch(path, options);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // ─── Stats ───
+  async function loadStats() {
+    try {
+      const s = await api('/api/stats');
+      document.getElementById('stat-total').textContent = s.total ?? 0;
+      document.getElementById('stat-cw').textContent = s.by_source?.CrowdWorks ?? 0;
+      document.getElementById('stat-la').textContent = s.by_source?.Lancers ?? 0;
+      document.getElementById('stat-co').textContent = s.by_source?.Coconala ?? 0;
+      document.getElementById('stat-in').textContent = s.by_source?.Indeed ?? 0;
+      document.getElementById('stat-bm').textContent = s.bookmarked ?? 0;
+      if (s.last_fetch) {
+        const d = new Date(s.last_fetch);
+        document.getElementById('last-fetch-label').textContent =
+          '最終取得: ' + d.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      }
+    } catch(e) { console.error('stats error', e); }
+  }
+
+  // ─── Jobs ───
+  async function loadJobs() {
+    const grid = document.getElementById('jobs-grid');
+    grid.style.opacity = '0.5';
+    grid.style.pointerEvents = 'none';
+    try {
+      const params = new URLSearchParams({
+        limit: state.limit,
+        offset: (state.page - 1) * state.limit,
+        source: state.source,
+        bookmarked: state.bookmarked,
+        search: state.search,
+        category: state.category,
+      });
+      const data = await api(`/api/jobs?${params}`);
+      state.total = data.total;
+      renderJobs(data.jobs);
+      renderPagination();
+      document.getElementById('result-info').innerHTML =
+        `<span>${data.total}</span> 件の案件が見つかりました${state.search ? `（"${state.search}" を含む）` : ''}`;
+    } catch(e) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-title">データ取得エラー</div><div class="empty-desc">${e.message}</div></div>`;
+    } finally {
+      grid.style.opacity = '1';
+      grid.style.pointerEvents = '';
+    }
+  }
+
+  function renderJobs(jobs) {
+    const grid = document.getElementById('jobs-grid');
+    if (!jobs.length) {
+      const isFirstTime = state.source === 'all' && !state.search && !state.bookmarked;
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">${isFirstTime ? '🚀' : '🔍'}</div>
+          <div class="empty-title">${isFirstTime ? '案件がまだありません' : '条件に合う案件が見つかりません'}</div>
+          <div class="empty-desc">
+            ${isFirstTime
+              ? '「今すぐ取得」ボタンを押すと、各サイトから案件を収集します。<br>毎朝 08:00 に自動取得されます。'
+              : 'フィルターを変えてお試しください。'}
+          </div>
+          ${isFirstTime ? `<button class="btn-fetch" onclick="triggerFetch()" style="margin:0 auto">🔄 今すぐ取得する</button>` : ''}
+        </div>`;
+      return;
+    }
+
+    const now = Date.now();
+    grid.innerHTML = jobs.map((j, i) => {
+      const sc = sourceClass[j.source] || '';
+      const keywords = j.matched_keywords ? j.matched_keywords.split(',').filter(Boolean).slice(0, 4) : [];
+      const date = j.posted_at ? new Date(j.posted_at).toLocaleDateString('ja-JP') :
+                   new Date(j.fetched_at).toLocaleDateString('ja-JP');
+      const desc = j.description ? escHtml(j.description.slice(0, 120)) : '';
+      const style = `animation-delay:${i * 0.04}s`;
+      const isNew = (now - new Date(j.fetched_at).getTime()) < 24 * 60 * 60 * 1000;
+
+      return `
+        <div class="job-card ${sc}" id="card-${j.id}" style="${style}">
+          <div class="job-card-header">
+            <span class="source-badge ${sc}">${j.source}</span>
+            ${isNew ? '<span class="badge-new">NEW</span>' : ''}
+            <div class="job-title">
+              <a href="${escHtml(j.url)}" target="_blank" rel="noopener">${escHtml(j.title)}</a>
+            </div>
+          </div>
+          ${desc ? `<div class="job-desc">${desc}</div>` : ''}
+          ${keywords.length ? `
+            <div class="job-keywords">
+              ${keywords.map(k => `<span class="keyword-tag">${escHtml(k)}</span>`).join('')}
+            </div>
+          ` : ''}
+          <div class="job-meta">
+            <span class="job-date">${date}</span>
+          </div>
+          <div class="job-actions">
+            <a href="${escHtml(j.url)}" target="_blank" rel="noopener" class="action-btn open">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              案件ページを開く
+            </a>
+            <button class="action-btn bookmark ${j.is_bookmarked ? 'active' : ''}"
+              onclick="toggleBookmark(${j.id}, this)" title="ブックマーク">
+              ${j.is_bookmarked ? '⭐' : '☆'}
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ─── Pagination ───
+  function renderPagination() {
+    const totalPages = Math.ceil(state.total / state.limit);
+    if (totalPages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+    let html = '';
+    html += `<button class="page-btn" onclick="setPage(${state.page-1})" ${state.page===1?'disabled':''}>‹</button>`;
+    for (let p = Math.max(1, state.page-2); p <= Math.min(totalPages, state.page+2); p++) {
+      html += `<button class="page-btn ${p===state.page?'active':''}" onclick="setPage(${p})">${p}</button>`;
+    }
+    html += `<button class="page-btn" onclick="setPage(${state.page+1})" ${state.page===totalPages?'disabled':''}>›</button>`;
+    document.getElementById('pagination').innerHTML = html;
+  }
+
+  function setPage(p) {
+    state.page = p;
+    loadJobs();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ─── Logs ───
+  async function loadLogs() {
+    try {
+      const logs = await api('/api/logs');
+      const body = document.getElementById('logs-body');
+      if (!logs.length) {
+        body.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px">ログなし</td></tr>';
+        return;
+      }
+      body.innerHTML = logs.map(l => {
+        const d = new Date(l.fetched_at);
+        const ts = d.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        return `<tr>
+          <td>${ts}</td>
+          <td>${escHtml(l.source)}</td>
+          <td><strong style="color:var(--accent-teal)">+${l.count}</strong></td>
+          <td><span class="log-badge ${l.status}">${l.status === 'success' ? '✓ 完了' : '✗ エラー'}</span></td>
+        </tr>`;
+      }).join('');
+    } catch(e) { console.error('logs error', e); }
+  }
+
+  // ─── Actions ───
+  function setSource(source, btn) {
+    state.source = source;
+    state.page = 1;
+    document.querySelectorAll('.filter-tab').forEach(el => el.classList.remove('active'));
+    btn.classList.add('active');
+    loadJobs();
+  }
+
+  function setCategory(category, btn) {
+    state.category = category;
+    state.page = 1;
+    document.querySelectorAll('.category-tab').forEach(el => el.classList.remove('active'));
+    btn.classList.add('active');
+    loadJobs();
+  }
+
+  function toggleBookmarkFilter() {
+    state.bookmarked = !state.bookmarked;
+    state.page = 1;
+    const btn = document.getElementById('btn-bookmark');
+    btn.classList.toggle('active', state.bookmarked);
+    loadJobs();
+  }
+
+  function onSearchInput() {
+    clearTimeout(state.searchTimer);
+    state.searchTimer = setTimeout(() => {
+      state.search = document.getElementById('search-input').value.trim();
+      state.page = 1;
+      loadJobs();
+    }, 400);
+  }
+
+  async function toggleBookmark(id, btn) {
+    try {
+      await api(`/api/jobs/${id}/bookmark`, { method: 'POST' });
+      const isActive = btn.classList.toggle('active');
+      btn.textContent = isActive ? '⭐' : '☆';
+      loadStats();
+    } catch(e) { showToast('エラーが発生しました', 'error'); }
+  }
+
+  async function dismissJob(id) {
+    try {
+      await api(`/api/jobs/${id}/dismiss`, { method: 'POST' });
+      const card = document.getElementById(`card-${id}`);
+      if (card) { card.style.animation = 'fadeInUp 0.2s ease reverse'; setTimeout(() => { card.remove(); }, 200); }
+      state.total--;
+      document.getElementById('result-info').innerHTML = `<span>${state.total}</span> 件の案件が見つかりました`;
+    } catch(e) { showToast('エラーが発生しました', 'error'); }
+  }
+
+  async function triggerFetch() {
+    const btn = document.getElementById('btn-fetch');
+    btn.classList.add('loading');
+    btn.querySelector('span') ? null : null;
+    try {
+      await api('/api/fetch', { method: 'POST' });
+      showToast('🔄 バックグラウンドでスクレイピングを開始しました。数分後にリロードしてください。', 'info');
+      setTimeout(() => { loadStats(); loadJobs(); loadLogs(); }, 8000);
+    } catch(e) {
+      showToast('取得開始に失敗しました', 'error');
+    } finally {
+      setTimeout(() => btn.classList.remove('loading'), 3000);
+    }
+  }
+
+  // ─── Toast ───
+  function showToast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+  }
+
+  // ─── Util ───
+  function escHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
