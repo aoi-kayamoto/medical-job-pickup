@@ -1,19 +1,18 @@
 """
 FastAPI バックエンド + 毎日自動スクレイピングスケジューラー
+配布版の安定した構成 + 医療案件・詐欺表示機能を統合
 """
 import logging
 import os
 import threading
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
 from pathlib import Path
 
 import schedule
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from database import (
     dismiss_job,
@@ -32,6 +31,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# スクレイピングの二重起動防止ロック（配布版の安定設計）
+_fetch_lock = threading.Lock()
+
+
 # ─────────────────────────────────────
 # スケジューラー
 # ─────────────────────────────────────
@@ -47,10 +50,9 @@ def run_scheduler():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    # バックグラウンドスレッドでスケジューラー起動
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
-    logger.info("メディフリ案件ピックアップツール起動完了")
+    logger.info("医療案件ピックアップツール起動完了")
     yield
     logger.info("サーバー停止")
 
@@ -59,7 +61,7 @@ async def lifespan(app: FastAPI):
 # FastAPI アプリ
 # ─────────────────────────────────────
 app = FastAPI(
-    title="メディフリ案件ピックアップ",
+    title="医療案件ピックアップ",
     description="看護師向けクラウドソーシング案件を自動収集するツール",
     lifespan=lifespan,
 )
@@ -73,23 +75,28 @@ def api_get_jobs(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     source: str = Query("all"),
+    tier: str = Query("all"),
     bookmarked: bool = Query(False),
     search: str = Query(""),
-    category: str = Query(""),
+    scam: bool = Query(False),
 ):
+    source_val = source if source != "all" else None
+    tier_val = tier if tier != "all" else None
     jobs = get_jobs(
         limit=limit,
         offset=offset,
-        source=source if source != "all" else None,
+        source=source_val,
+        tier=tier_val,
         only_bookmarked=bookmarked,
         search=search if search else None,
-        category=category if category else None,
+        show_scam=scam,
     )
     total = get_job_count(
-        source=source if source != "all" else None,
+        source=source_val,
+        tier=tier_val,
         only_bookmarked=bookmarked,
         search=search if search else None,
-        category=category if category else None,
+        show_scam=scam,
     )
     return {"jobs": jobs, "total": total}
 
@@ -106,9 +113,18 @@ def api_logs():
 
 @app.post("/api/fetch")
 def api_fetch():
-    """手動でスクレイピングを実行"""
+    """手動でスクレイピングを実行（二重起動防止付き）"""
+    if not _fetch_lock.acquire(blocking=False):
+        return JSONResponse(
+            status_code=409,
+            content={"status": "busy", "message": "現在スクレイピング中です。しばらくお待ちください。"}
+        )
+
     def run_in_bg():
-        run_all_scrapers()
+        try:
+            run_all_scrapers()
+        finally:
+            _fetch_lock.release()
 
     thread = threading.Thread(target=run_in_bg, daemon=True)
     thread.start()
@@ -117,14 +133,20 @@ def api_fetch():
 
 @app.post("/api/jobs/{job_id}/bookmark")
 def api_bookmark(job_id: int):
-    toggle_bookmark(job_id)
-    return {"status": "ok"}
+    try:
+        toggle_bookmark(job_id)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/jobs/{job_id}/dismiss")
 def api_dismiss(job_id: int):
-    dismiss_job(job_id)
-    return {"status": "ok"}
+    try:
+        dismiss_job(job_id)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─────────────────────────────────────
