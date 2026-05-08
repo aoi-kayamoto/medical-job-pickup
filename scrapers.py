@@ -421,49 +421,54 @@ def scrape_kyujinbox() -> tuple[int, int]:
 
 
 # ─────────────────────────────────────
-# ママワークス（Playwright）
+# ママワークス（cloudscraper版 ─ 軽量化）
 # ─────────────────────────────────────
 def scrape_mamaworks() -> tuple[int, int]:
     source = "Mamaworks"
     total_new, total_scam = 0, 0
-    from playwright.sync_api import sync_playwright
+    seen_urls: set[str] = set()
+    scraper = _make_scraper()
 
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--single-process"]
-            )
-            for term in MEDICAL_TERMS[:2]:
+    for term in MEDICAL_TERMS[:2]:
+        try:
+            url = f"https://mamaworks.jp/list/?keyword={requests.utils.quote(term)}"
+            res = scraper.get(url, timeout=20)
+            logger.info(f"Mamaworks '{term}': HTTP {res.status_code}")
+            if res.status_code != 200:
+                continue
+
+            soup = BeautifulSoup(res.text, "lxml")
+            # 案件リンクを抽出
+            items = soup.select(".job-list-item, .p-job-list__item, a[href*='/job/']")
+            
+            for item in items:
                 try:
-                    page = browser.new_page()
-                    page.goto(f"https://mamaworks.jp/list/?keyword={requests.utils.quote(term)}", timeout=20000)
-                    page.wait_for_timeout(3000)
-                    links = page.eval_on_selector_all('a[href*="/job/"]', "elements => elements.map(el => [el.href, el.innerText])")
-                    seen_urls: set[str] = set()
-                    for link, text_content in links:
-                        if not link.startswith("http"):
-                            link = "https://mamaworks.jp" + link
-                        if link in seen_urls:
-                            continue
-                        seen_urls.add(link)
-                        title_lines = [l.strip() for l in text_content.split('\n') if l.strip()]
-                        if not title_lines:
-                            continue
-                        title = title_lines[0]
-                        if title in ["NEW", "急募", "在宅"]:
-                            title = title_lines[1] if len(title_lines) > 1 else title
-                        is_new, is_scam = _process_item(source, title, "", link, None, None)
-                        if is_new: total_new += 1
-                        if is_scam: total_scam += 1
-                    page.close()
+                    # aタグを特定
+                    a = item if item.name == "a" else item.find("a", href=True)
+                    if not a: continue
+                    
+                    href = a.get("href", "")
+                    job_url = href if href.startswith("http") else "https://mamaworks.jp" + href
+                    if job_url in seen_urls:
+                        continue
+                    seen_urls.add(job_url)
+
+                    # タイトル取得（構造に合わせて柔軟に）
+                    title = a.get_text(strip=True)
+                    if len(title) < 5: # "NEW" などの短いバッジを避ける
+                        parent = item.find(["h2", "h3", ".title"])
+                        if parent: title = parent.get_text(strip=True)
+
+                    if not title: continue
+
+                    is_new, is_scam = _process_item(source, title, "", job_url, None, None)
+                    if is_new: total_new += 1
+                    if is_scam: total_scam += 1
                 except Exception as e:
-                    logger.warning(f"Mamaworks term error ({term}): {e}")
-            browser.close()
-    except Exception as e:
-        logger.error(f"Mamaworks fatal error: {e}")
-        log_fetch(source, 0, status="error", message=str(e)[:100])
-        return 0, 0
+                    logger.debug(f"Mamaworks item error: {e}")
+            time.sleep(2)
+        except Exception as e:
+            logger.warning(f"Mamaworks fetch error ({term}): {e}")
 
     log_fetch(source, total_new, scam_blocked=total_scam)
     return total_new, total_scam
